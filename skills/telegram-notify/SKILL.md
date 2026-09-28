@@ -16,6 +16,9 @@ Sends a text message to the user's Telegram via a bot, using credentials from
 |---|---|
 | Send message | `bash ${CLAUDE_SKILL_DIR}/scripts/send.sh "message text"` |
 
+Full setup walkthrough, including the Telegram side and troubleshooting:
+[README.md](README.md).
+
 ## One-time setup (user does this, not Claude)
 
 1. Message `@BotFather` on Telegram → `/newbot` → get the bot token.

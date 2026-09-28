@@ -42,5 +42,7 @@ EOF
 chmod 600 ~/.claude/telegram-notify.env
 ```
 
-How to obtain both is described in [`telegram-notify/SKILL.md`](telegram-notify/SKILL.md).
+How to obtain both — creating the bot in @BotFather, finding your chat id, and what
+the common errors mean — is described in
+[`telegram-notify/README.md`](telegram-notify/README.md).
 Without that file the script exits with a clear error message.
