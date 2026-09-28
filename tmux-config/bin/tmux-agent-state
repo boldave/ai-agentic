@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# Oznacza stan pracy agenta w oknie i sesji tmuxa.
+#
+#   tmux-agent-state busy   - agent zaczął pracę (hook UserPromptSubmit)
+#   tmux-agent-state wait   - agent czeka na odpowiedź (hook Notification)
+#   tmux-agent-state done   - agent skończył pracę (hook Stop)
+#
+# Flagi czyta pasek statusu: @agent_busy_* rysuje animację, @agent_wait_*
+# pytajnik, @agent_done_* podświetla nazwę. Hooki tmuxa gaszą wait i done
+# przy wejściu w okno - żeby odpowiedzieć agentowi, musisz tam wejść,
+# więc samo wejście jest wiarygodnym sygnałem "już widzę".
+#
+# Osobne nazwy dla okna (_w) i sesji (_s) NIE są kosmetyką: opcje sesji
+# dziedziczą się do jej okien, więc wspólna nazwa zapaliłaby znacznik
+# przy każdym oknie oznaczonej sesji.
+#
+# TMUX_PANE wskazuje panel, w którym działa agent - NIE panel aktywny.
+# Bez -t "$TMUX_PANE" tmux oznaczyłby okno, na które akurat patrzysz.
+set -u
+
+stan="${1:-}"
+case "$stan" in
+    busy|wait|done) ;;
+    *) echo "użycie: $(basename "$0") busy|wait|done" >&2; exit 2 ;;
+esac
+
+# Hook dostaje JSON na wejściu. Zapamiętujemy treść powiadomienia w opcji
+# tmuxa - bez tego nie da się sprawdzić, jakie powiadomienia faktycznie
+# przychodzą, a od tego zależy, które mają zapalać pytajnik.
+komunikat=""
+if [ ! -t 0 ]; then
+    wejscie=$(cat 2>/dev/null || true)
+    if [ -n "$wejscie" ] && command -v jq >/dev/null 2>&1; then
+        komunikat=$(printf '%s' "$wejscie" | jq -r '.message // empty' 2>/dev/null || true)
+    fi
+fi
+
+[ -n "${TMUX:-}" ] || exit 0
+[ -n "${TMUX_PANE:-}" ] || exit 0
+command -v tmux >/dev/null 2>&1 || exit 0
+
+info=$(tmux display -p -t "$TMUX_PANE" -F '#{session_id} #{window_id} #{window_active}' 2>/dev/null) || exit 0
+read -r sesja okno aktywne <<<"$info"
+[ -n "${okno:-}" ] || exit 0
+
+# Czy użytkownik patrzy właśnie na to okno? Okno aktywne w swojej sesji
+# ORAZ ta sesja podłączona do klienta. Wtedy nie ma czego sygnalizować.
+patrzy() {
+    [ "$aktywne" = "1" ] || return 1
+    while read -r sesja_klienta; do
+        [ "$sesja_klienta" = "$sesja" ] && return 0
+    done < <(tmux list-clients -F '#{session_id}' 2>/dev/null)
+    return 1
+}
+
+zgas() {
+    tmux set -q -u -w -t "$okno"  "@agent_${1}_w" 2>/dev/null
+    tmux set -q -u    -t "$sesja" "@agent_${1}_s" 2>/dev/null
+}
+
+zapal() {
+    tmux set -w -t "$okno"  "@agent_${1}_w" 1 2>/dev/null
+    tmux set    -t "$sesja" "@agent_${1}_s" 1 2>/dev/null
+}
+
+if [ "$stan" = "busy" ]; then
+    zgas wait
+    zgas done
+    zapal busy
+    exit 0
+fi
+
+if [ "$stan" = "wait" ]; then
+    [ -n "$komunikat" ] && tmux set -g @agent_last_notif "$komunikat" 2>/dev/null
+
+    # Claude Code wysyła Notification także wtedy, gdy po prostu bezczynnie
+    # czeka na kolejny prompt - komunikatem "Claude is waiting for your input".
+    # To NIE jest pytanie do użytkownika, więc nie może zapalać pytajnika:
+    # przychodzi po Stop i nadpisywałoby zielone światło.
+    case "$komunikat" in
+        *"waiting for your input"*|*"Waiting for your input"*) exit 0 ;;
+    esac
+
+    # Zabezpieczenie na wypadek innego komunikatu po zakończeniu tury.
+    if [ -n "$(tmux show -v -w -t "$okno" @agent_done_w 2>/dev/null)" ]; then
+        exit 0
+    fi
+
+    # Animacja gaśnie: agent nie pracuje, tylko czeka.
+    zgas busy
+    patrzy && exit 0
+    zapal wait
+    exit 0
+fi
+
+# done: animacja i pytajnik gasną zawsze
+zgas busy
+zgas wait
+
+patrzy && exit 0
+zapal done
+exit 0
