@@ -1,37 +1,37 @@
 #!/usr/bin/env bash
-# Oznacza stan pracy agenta w oknie i sesji tmuxa.
+# Marks the state of an agent's work on a tmux window and session.
 #
-#   tmux-agent-state busy   - agent zaczął pracę (hook UserPromptSubmit)
-#   tmux-agent-state wait   - agent czeka na odpowiedź (hook Notification)
-#   tmux-agent-state done   - agent skończył pracę (hook Stop)
+#   tmux-agent-state busy   - the agent started working (UserPromptSubmit hook)
+#   tmux-agent-state wait   - the agent is waiting for an answer (Notification hook)
+#   tmux-agent-state done   - the agent finished working (Stop hook)
 #
-# Flagi czyta pasek statusu: @agent_busy_* rysuje animację, @agent_wait_*
-# pytajnik, @agent_done_* podświetla nazwę. Hooki tmuxa gaszą wait i done
-# przy wejściu w okno - żeby odpowiedzieć agentowi, musisz tam wejść,
-# więc samo wejście jest wiarygodnym sygnałem "już widzę".
+# The status bar reads these flags: @agent_busy_* draws the animation,
+# @agent_wait_* the question mark, @agent_done_* highlights the name. tmux hooks
+# clear wait and done on entering the window - to answer the agent you have to go
+# there anyway, so entering is a trustworthy "I can see it now" signal.
 #
-# Osobne nazwy dla okna (_w) i sesji (_s) NIE są kosmetyką: opcje sesji
-# dziedziczą się do jej okien, więc wspólna nazwa zapaliłaby znacznik
-# przy każdym oknie oznaczonej sesji.
+# Separate names for the window (_w) and the session (_s) are NOT cosmetic:
+# session options are inherited by its windows, so a shared name would light the
+# marker up on every window of a marked session.
 #
-# TMUX_PANE wskazuje panel, w którym działa agent - NIE panel aktywny.
-# Bez -t "$TMUX_PANE" tmux oznaczyłby okno, na które akurat patrzysz.
+# TMUX_PANE points at the pane the agent runs in - NOT the active pane.
+# Without -t "$TMUX_PANE" tmux would mark whichever window you happen to look at.
 set -u
 
-stan="${1:-}"
-case "$stan" in
+state="${1:-}"
+case "$state" in
     busy|wait|done) ;;
-    *) echo "użycie: $(basename "$0") busy|wait|done" >&2; exit 2 ;;
+    *) echo "usage: $(basename "$0") busy|wait|done" >&2; exit 2 ;;
 esac
 
-# Hook dostaje JSON na wejściu. Zapamiętujemy treść powiadomienia w opcji
-# tmuxa - bez tego nie da się sprawdzić, jakie powiadomienia faktycznie
-# przychodzą, a od tego zależy, które mają zapalać pytajnik.
-komunikat=""
+# The hook receives JSON on stdin. We remember the notification text in a tmux
+# option - without it there is no way to check which notifications actually
+# arrive, and that decides which ones should light the question mark up.
+message=""
 if [ ! -t 0 ]; then
-    wejscie=$(cat 2>/dev/null || true)
-    if [ -n "$wejscie" ] && command -v jq >/dev/null 2>&1; then
-        komunikat=$(printf '%s' "$wejscie" | jq -r '.message // empty' 2>/dev/null || true)
+    input=$(cat 2>/dev/null || true)
+    if [ -n "$input" ] && command -v jq >/dev/null 2>&1; then
+        message=$(printf '%s' "$input" | jq -r '.message // empty' 2>/dev/null || true)
     fi
 fi
 
@@ -40,63 +40,64 @@ fi
 command -v tmux >/dev/null 2>&1 || exit 0
 
 info=$(tmux display -p -t "$TMUX_PANE" -F '#{session_id} #{window_id} #{window_active}' 2>/dev/null) || exit 0
-read -r sesja okno aktywne <<<"$info"
-[ -n "${okno:-}" ] || exit 0
+read -r session window active <<<"$info"
+[ -n "${window:-}" ] || exit 0
 
-# Czy użytkownik patrzy właśnie na to okno? Okno aktywne w swojej sesji
-# ORAZ ta sesja podłączona do klienta. Wtedy nie ma czego sygnalizować.
-patrzy() {
-    [ "$aktywne" = "1" ] || return 1
-    while read -r sesja_klienta; do
-        [ "$sesja_klienta" = "$sesja" ] && return 0
+# Is the user looking at this very window? The window is active within its
+# session AND that session is attached to a client. Then there is nothing to
+# signal.
+is_watching() {
+    [ "$active" = "1" ] || return 1
+    while read -r client_session; do
+        [ "$client_session" = "$session" ] && return 0
     done < <(tmux list-clients -F '#{session_id}' 2>/dev/null)
     return 1
 }
 
-zgas() {
-    tmux set -q -u -w -t "$okno"  "@agent_${1}_w" 2>/dev/null
-    tmux set -q -u    -t "$sesja" "@agent_${1}_s" 2>/dev/null
+clear_flag() {
+    tmux set -q -u -w -t "$window"  "@agent_${1}_w" 2>/dev/null
+    tmux set -q -u    -t "$session" "@agent_${1}_s" 2>/dev/null
 }
 
-zapal() {
-    tmux set -w -t "$okno"  "@agent_${1}_w" 1 2>/dev/null
-    tmux set    -t "$sesja" "@agent_${1}_s" 1 2>/dev/null
+set_flag() {
+    tmux set -w -t "$window"  "@agent_${1}_w" 1 2>/dev/null
+    tmux set    -t "$session" "@agent_${1}_s" 1 2>/dev/null
 }
 
-if [ "$stan" = "busy" ]; then
-    zgas wait
-    zgas done
-    zapal busy
+if [ "$state" = "busy" ]; then
+    clear_flag wait
+    clear_flag done
+    set_flag busy
     exit 0
 fi
 
-if [ "$stan" = "wait" ]; then
-    [ -n "$komunikat" ] && tmux set -g @agent_last_notif "$komunikat" 2>/dev/null
+if [ "$state" = "wait" ]; then
+    [ -n "$message" ] && tmux set -g @agent_last_notif "$message" 2>/dev/null
 
-    # Claude Code wysyła Notification także wtedy, gdy po prostu bezczynnie
-    # czeka na kolejny prompt - komunikatem "Claude is waiting for your input".
-    # To NIE jest pytanie do użytkownika, więc nie może zapalać pytajnika:
-    # przychodzi po Stop i nadpisywałoby zielone światło.
-    case "$komunikat" in
+    # Claude Code also sends a Notification when it is simply sitting idle
+    # waiting for the next prompt - with the message "Claude is waiting for your
+    # input". That is NOT a question to the user, so it must not light the
+    # question mark up: it arrives after Stop and would overwrite the green light.
+    case "$message" in
         *"waiting for your input"*|*"Waiting for your input"*) exit 0 ;;
     esac
 
-    # Zabezpieczenie na wypadek innego komunikatu po zakończeniu tury.
-    if [ -n "$(tmux show -v -w -t "$okno" @agent_done_w 2>/dev/null)" ]; then
+    # A guard in case some other message arrives after the turn has ended.
+    if [ -n "$(tmux show -v -w -t "$window" @agent_done_w 2>/dev/null)" ]; then
         exit 0
     fi
 
-    # Animacja gaśnie: agent nie pracuje, tylko czeka.
-    zgas busy
-    patrzy && exit 0
-    zapal wait
+    # The animation goes out: the agent is not working, only waiting.
+    clear_flag busy
+    is_watching && exit 0
+    set_flag wait
     exit 0
 fi
 
-# done: animacja i pytajnik gasną zawsze
-zgas busy
-zgas wait
+# done: the animation and the question mark always go out
+clear_flag busy
+clear_flag wait
 
-patrzy && exit 0
-zapal done
+is_watching && exit 0
+set_flag done
 exit 0

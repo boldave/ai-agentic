@@ -1,45 +1,46 @@
 # skills
 
-Skille Claude Code. Każdy w osobnym katalogu z `SKILL.md` i ewentualnymi skryptami.
+Claude Code skills. Each one in its own directory with a `SKILL.md` and any scripts.
 
-| Skill | Do czego |
+| Skill | What it is for |
 |---|---|
-| [`spawn-worker-tmux/`](spawn-worker-tmux/) | uruchamianie i wygaszanie sesji-workerów w oknach tmuxa (zamiennik `agent-crew:spawn-worker`, który wymaga cmux) |
-| [`telegram-notify/`](telegram-notify/) | wysyłka powiadomień na Telegram przez bota |
+| [`spawn-worker-tmux/`](spawn-worker-tmux/) | starting and retiring worker sessions in tmux windows (a replacement for `agent-crew:spawn-worker`, which needs cmux) |
+| [`telegram-notify/`](telegram-notify/) | sending notifications to Telegram through a bot |
 
-## Instalacja na nowej maszynie
+## Installing on a new machine
 
-Claude Code czyta skille z `~/.claude/skills/`. Dowiązania zamiast kopii — wtedy
-zmiany od razu są w repo:
+Claude Code reads skills from `~/.claude/skills/`. Symlinks rather than copies —
+that way edits land in the repo straight away:
 
 ```bash
 ln -s ~/ai-agentic/skills/spawn-worker-tmux ~/.claude/skills/spawn-worker-tmux
 ln -s ~/ai-agentic/skills/telegram-notify   ~/.claude/skills/telegram-notify
 ```
 
-Skille są widoczne po restarcie sesji Claude Code.
+The skills show up after restarting the Claude Code session.
 
 ## spawn-worker-tmux
 
-Wymaga uruchomienia **wewnątrz tmuxa** — każdy worker dostaje własne okno w tle
-(`new-window -d`), więc pojawia się na pasku statusu bieżącej sesji bez zabierania
-fokusu. Pod `--role` idzie dowolna definicja agenta, dokładnie tak, jak nazywa ją
-narzędzie Agent (np. `agent-crew:backend-developer`).
+Has to be run **inside tmux** — every worker gets its own background window
+(`new-window -d`), so it appears on the current session's status bar without
+taking focus. `--role` takes any agent definition, spelled exactly as the Agent
+tool spells it (e.g. `agent-crew:backend-developer`).
 
-Dobrze łączy się z [`../tmux-config/`](../tmux-config/) — pasek statusu pokazuje wtedy,
-który worker pracuje, a który skończył.
+It pairs well with [`../tmux-config/`](../tmux-config/) — the status bar then shows
+which worker is busy and which one has finished.
 
 ## telegram-notify
 
-**Poświadczeń nie ma w repo** i nie powinno być. Skrypt czyta je z pliku poza repem:
+**The credentials are not in the repo** and should not be. The script reads them
+from a file outside it:
 
 ```bash
 cat > ~/.claude/telegram-notify.env <<'EOF'
-TELEGRAM_BOT_TOKEN=<token-od-BotFather>
-TELEGRAM_CHAT_ID=<twoj-chat-id>
+TELEGRAM_BOT_TOKEN=<token-from-BotFather>
+TELEGRAM_CHAT_ID=<your-chat-id>
 EOF
 chmod 600 ~/.claude/telegram-notify.env
 ```
 
-Jak zdobyć jedno i drugie — opisane w [`telegram-notify/SKILL.md`](telegram-notify/SKILL.md).
-Bez tego pliku skrypt kończy się błędem z czytelnym komunikatem.
+How to obtain both is described in [`telegram-notify/SKILL.md`](telegram-notify/SKILL.md).
+Without that file the script exits with a clear error message.

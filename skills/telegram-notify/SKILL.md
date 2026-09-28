@@ -14,7 +14,7 @@ Sends a text message to the user's Telegram via a bot, using credentials from
 
 | Action | Command |
 |---|---|
-| Send message | `bash ${CLAUDE_SKILL_DIR}/scripts/send.sh "treść wiadomości"` |
+| Send message | `bash ${CLAUDE_SKILL_DIR}/scripts/send.sh "message text"` |
 
 ## One-time setup (user does this, not Claude)
 
@@ -37,3 +37,5 @@ Sends a text message to the user's Telegram via a bot, using credentials from
   missing or still has placeholder values.
 - `send.sh` takes the message as its remaining arguments (no quoting pitfalls
   needed beyond normal shell quoting of the whole message).
+- The Polish phrases in the description above are deliberate: they are the
+  trigger examples that make the skill fire when the user writes in Polish.

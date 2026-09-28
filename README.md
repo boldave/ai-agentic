@@ -1,9 +1,9 @@
 # ai-agentic
 
-Rzeczy związane z pracą z agentami AI — konfiguracje, skille, narzędzia.
-Każdy temat w osobnym katalogu, żeby dało się przenieść pojedynczo na inną maszynę.
+Things for working with AI agents — configuration, skills, tooling.
+Each topic lives in its own directory so it can be moved to another machine on its own.
 
-| Katalog | Co zawiera |
+| Directory | What it holds |
 |---|---|
-| [`tmux-config/`](tmux-config/) | konfiguracja tmuxa z paskiem statusu pokazującym stan agentów Claude Code |
-| [`skills/`](skills/) | skille Claude Code: workery w tmuksie, powiadomienia na Telegram |
+| [`tmux-config/`](tmux-config/) | tmux configuration with a status bar showing the state of Claude Code agents |
+| [`skills/`](skills/) | Claude Code skills: workers in tmux, Telegram notifications |

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Jedna klatka animacji, wybrana na podstawie bieżącej sekundy.
+# One frame of the animation, picked from the current second.
 #
-# tmux nie ma w formatach źródła czasu, więc klatkę musi podać proces.
-# status-interval przyjmuje tylko pełne sekundy - stąd 1 klatka/s.
-klatki=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
-printf '%s' "${klatki[$(( $(date +%s) % ${#klatki[@]} ))]}"
+# tmux has no source of time in its formats, so a process has to supply the
+# frame. status-interval accepts whole seconds only - hence 1 frame/s.
+frames=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+printf '%s' "${frames[$(( $(date +%s) % ${#frames[@]} ))]}"

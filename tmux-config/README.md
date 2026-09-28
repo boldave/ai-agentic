@@ -1,49 +1,49 @@
 # tmux-config
 
-Konfiguracja tmuxa z paskiem statusu pokazującym stan agentów Claude Code:
-animacja gdy agent pracuje, pytajnik gdy czeka na odpowiedź, zielone podświetlenie
-gdy skończył — osobno dla każdego okna i każdej sesji.
+A tmux configuration whose status bar shows the state of Claude Code agents:
+an animation while an agent works, a question mark when it waits for an answer,
+a green highlight when it is done — separately for every window and every session.
 
-## Zawartość
+## Contents
 
-| Plik | Do czego |
+| File | What it is for |
 |---|---|
-| `tmux.conf` | cała konfiguracja: pasek statusu (3 linie), obsługa myszy, menu kontekstowe |
-| `bin/tmux-agent-state` | ustawia flagi stanu agenta; wołany z hooków Claude Code |
-| `bin/tmux-spinner` | jedna klatka animacji; tmux nie ma w formatach źródła czasu |
+| `tmux.conf` | the whole configuration: status bar (3 lines), mouse support, context menus |
+| `bin/tmux-agent-state` | sets the agent state flags; called from Claude Code hooks |
+| `bin/tmux-spinner` | one frame of the animation; tmux has no source of time in its formats |
 
-## Wymagania
+## Requirements
 
-- tmux 3.2+ (używane są `status-format[N]`, `display-menu`, `#{S:...}`)
-- `jq` — `tmux-agent-state` czyta nim treść powiadomienia z hooka
-- [TPM](https://github.com/tmux-plugins/tpm) w `~/.tmux/plugins/tpm` (ostatnia linia `tmux.conf`)
-- terminal z truecolor (paleta Sonokai)
+- tmux 3.2+ (it uses `status-format[N]`, `display-menu`, `#{S:...}`)
+- `jq` — `tmux-agent-state` uses it to read the notification text from the hook
+- [TPM](https://github.com/tmux-plugins/tpm) in `~/.tmux/plugins/tpm` (last line of `tmux.conf`)
+- a truecolor terminal (Sonokai palette)
 
-## Instalacja na nowej maszynie
+## Installing on a new machine
 
 ```bash
 git clone https://github.com/boldave/ai-agentic.git ~/ai-agentic
 ln -s ~/ai-agentic/tmux-config/tmux.conf ~/.tmux.conf
 
-# TPM, jeśli jeszcze nie ma
+# TPM, if it is not there yet
 git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 ```
 
-Potem w tmuksie `prefix + I` (instalacja wtyczek) i `prefix + r` albo restart serwera.
+Then, inside tmux, `prefix + I` (install plugins) and `prefix + r`, or restart the server.
 
-### Jeśli klonujesz gdzie indziej niż `~/ai-agentic`
+### If you clone somewhere other than `~/ai-agentic`
 
-Do zmiany jest **jedna linia** na górze `tmux.conf`:
+There is **one line** to change, at the top of `tmux.conf`:
 
 ```tmux
 set -g @agent_bin "~/ai-agentic/tmux-config/bin"
 ```
 
-Tylda działa — tmux uruchamia te komendy przez `/bin/sh`.
+The tilde works — tmux runs these commands through `/bin/sh`.
 
-## Podpięcie do Claude Code
+## Wiring it to Claude Code
 
-Same skrypty nic nie robią, dopóki nie zawoła ich Claude Code. W `~/.claude/settings.json`:
+The scripts do nothing until Claude Code calls them. In `~/.claude/settings.json`:
 
 ```json
 {
@@ -64,24 +64,27 @@ Same skrypty nic nie robią, dopóki nie zawoła ich Claude Code. W `~/.claude/s
 }
 ```
 
-## Jak to działa
+## How it works
 
-`tmux-agent-state` ustawia flagi w opcjach tmuxa — osobno dla okna (`@agent_busy_w`,
-`@agent_wait_w`, `@agent_done_w`) i dla sesji (`..._s`). Osobne nazwy nie są kosmetyką:
-opcje sesji dziedziczą się do jej okien, więc wspólna nazwa zapaliłaby znacznik przy
-każdym oknie oznaczonej sesji.
+`tmux-agent-state` sets flags in tmux options — separately for the window
+(`@agent_busy_w`, `@agent_wait_w`, `@agent_done_w`) and for the session (`..._s`).
+The separate names are not cosmetic: session options are inherited by that
+session's windows, so a shared name would light the marker up on every window of
+a marked session.
 
-Pasek statusu czyta te flagi i rysuje odpowiedni stan. Kolejność ważności:
-pytanie (pomarańczowy) > ukończenie (zielony) > aktywność (animacja).
+The status bar reads those flags and draws the matching state. Order of
+precedence: question (orange) > finished (green) > working (animation).
 
-Flagi `wait` i `done` gasną same przy wejściu w okno — żeby odpowiedzieć agentowi
-i tak musisz tam wejść, więc samo wejście jest wiarygodnym sygnałem „już widzę".
+The `wait` and `done` flags clear themselves when you enter the window — to answer
+the agent you have to go there anyway, so entering is a trustworthy "I can see it
+now" signal.
 
-Skrypt oznacza panel z `$TMUX_PANE`, czyli ten, w którym działa agent — a nie ten,
-na który akurat patrzysz.
+The script marks the pane from `$TMUX_PANE`, that is the one the agent runs in —
+not the one you happen to be looking at.
 
-## Uwaga
+## Note
 
-Kopia tej konfiguracji żyje też w prywatnym repo `~/dotfiles` (tam `tmux.conf` ma
-ścieżki wskazujące na `~/dotfiles/bin`). Przy zmianach trzeba pamiętać o obu miejscach
-albo w końcu zdecydować, które jest źródłem prawdy.
+A copy of this configuration also lives in the private `~/dotfiles` repo (there
+`tmux.conf` points its paths at `~/dotfiles/bin`, and its comments are in Polish).
+Changes have to be made in both places, or you eventually have to decide which one
+is the source of truth.

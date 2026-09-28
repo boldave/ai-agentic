@@ -4,25 +4,25 @@ set -euo pipefail
 CONFIG_FILE="${HOME}/.claude/telegram-notify.env"
 
 if [[ ! -f "$CONFIG_FILE" ]]; then
-  echo "Brak pliku konfiguracyjnego: $CONFIG_FILE" >&2
+  echo "Config file missing: $CONFIG_FILE" >&2
   exit 1
 fi
 
 # shellcheck source=/dev/null
 source "$CONFIG_FILE"
 
-if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || "$TELEGRAM_BOT_TOKEN" == "twoj-bot-token" ]]; then
-  echo "TELEGRAM_BOT_TOKEN nie jest ustawiony w $CONFIG_FILE" >&2
+if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || "$TELEGRAM_BOT_TOKEN" == "your-bot-token" ]]; then
+  echo "TELEGRAM_BOT_TOKEN is not set in $CONFIG_FILE" >&2
   exit 1
 fi
 
-if [[ -z "${TELEGRAM_CHAT_ID:-}" || "$TELEGRAM_CHAT_ID" == "twoj-chat-id" ]]; then
-  echo "TELEGRAM_CHAT_ID nie jest ustawiony w $CONFIG_FILE" >&2
+if [[ -z "${TELEGRAM_CHAT_ID:-}" || "$TELEGRAM_CHAT_ID" == "your-chat-id" ]]; then
+  echo "TELEGRAM_CHAT_ID is not set in $CONFIG_FILE" >&2
   exit 1
 fi
 
 if [[ $# -lt 1 ]]; then
-  echo "Użycie: send.sh <treść wiadomości>" >&2
+  echo "Usage: send.sh <message text>" >&2
   exit 1
 fi
 
@@ -37,8 +37,8 @@ http_code=$(tail -n1 <<< "$response")
 body=$(sed '$d' <<< "$response")
 
 if [[ "$http_code" != "200" ]]; then
-  echo "Błąd wysyłki (HTTP $http_code): $body" >&2
+  echo "Send failed (HTTP $http_code): $body" >&2
   exit 1
 fi
 
-echo "Wysłano."
+echo "Sent."
